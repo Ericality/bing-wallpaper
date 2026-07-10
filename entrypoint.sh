@@ -1,4 +1,4 @@
-ni dee#!/bin/bash
+#!/bin/bash
 set -e
 
 echo "=========================================="
@@ -22,9 +22,12 @@ if [ "${BING_AUTO_FETCH}" = "true" ]; then
     echo ""
 fi
 
+# 将前端页面复制到网页目录
+echo "📄 复制前端页面..."
+cp /app/Dispaly.html "$BING_WEB_PATH"
+
 echo "🚀 启动 HTTP 静态文件服务器 (端口 8080)..."
 cd "$BING_WEB_PATH"
 
 # 使用 Python http.server 提供静态文件服务
 exec python -m http.server 8080 --bind 0.0.0.0
-"
