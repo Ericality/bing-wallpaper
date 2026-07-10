@@ -10,6 +10,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       libexiv2-dev \
       libboost-python-dev \
+      cron \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

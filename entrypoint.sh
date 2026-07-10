@@ -22,6 +22,29 @@ if [ "${BING_AUTO_FETCH}" = "true" ]; then
     echo ""
 fi
 
+# ----- 定时任务配置 (crontab) -----
+if [ -n "${BING_CRON}" ]; then
+    # 创建 cron wrapper 脚本，注入环境变量
+    cat > /app/cron_run.sh << EOF
+#!/bin/bash
+export SYNOLOGY_CHAT_WEBHOOK="${SYNOLOGY_CHAT_WEBHOOK}"
+export BARK_DEVICE_KEY="${BARK_DEVICE_KEY}"
+export BARK_API_URL="${BARK_API_URL:-https://api.day.app/push}"
+export BING_WEB_PATH="${BING_WEB_PATH}"
+export BING_IMAGES_PATH="${BING_IMAGES_PATH}"
+export BING_METADATA_FILE="${BING_METADATA_FILE}"
+export BING_BACKUP_PATH="${BING_BACKUP_PATH}"
+export TZ="${TZ}"
+cd /app && /usr/local/bin/python /app/bing_docker.py
+EOF
+    chmod +x /app/cron_run.sh
+    echo "${BING_CRON} /app/cron_run.sh >> /var/log/bing_cron.log 2>&1" | crontab -
+    echo "⏰ 已配置定时抓取: ${BING_CRON}"
+    cron -f &
+else
+    echo "ℹ️  未设置 BING_CRON，不启用定时抓取"
+fi
+
 # 将前端页面复制到网页目录
 echo "📄 复制前端页面..."
 cp /app/Dispaly.html "$BING_WEB_PATH"

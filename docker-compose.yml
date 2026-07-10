@@ -22,6 +22,9 @@ services:
       # ---- 是否启动时自动抓取一次 ----
       - BING_AUTO_FETCH=${BING_AUTO_FETCH:-false}
 
+      # ---- 定时抓取 (crontab 格式，可选) ----
+      - BING_CRON=${BING_CRON:-}
+
       # ---- 通知推送（可选）----
       - BARK_DEVICE_KEY=${BARK_DEVICE_KEY:-}
       - BARK_API_URL=${BARK_API_URL:-https://api.day.app/push}
