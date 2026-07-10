@@ -253,7 +253,7 @@ def send_bark_notification(title, body, group="BingWallpaper", level="active", i
 def fetch_bing_data():
     """从 Bing 获取今日壁纸数据，返回所需信息"""
     print("正在获取 Bing API 数据...")
-    api_url = 'https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN'
+    api_url = f'https://www.bing.com/HPImageArchive.aspx?format=js&idx={os.environ.get("BING_IDX", "0")}&n=1&mkt=zh-CN'
     resp = requests.get(api_url, headers=header)
     resp.raise_for_status()
     data = resp.json()

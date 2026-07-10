@@ -47,7 +47,7 @@ fi
 
 # 将前端页面复制到网页目录
 echo "📄 复制前端页面..."
-cp /app/Dispaly.html "$BING_WEB_PATH"
+cp /app/Dispaly.html "$BING_WEB_PATH/index.html"
 
 echo "🚀 启动 HTTP 静态文件服务器 (端口 8080)..."
 cd "$BING_WEB_PATH"
