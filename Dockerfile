@@ -1,4 +1,32 @@
-We need to apply the suggested edit to the original code. However, the original code is missing. The instruction says: "ORIGINAL CODE: ..." but the user only provided an empty block. Then they provided "SUGGESTED EDIT:" followed by the new Dockerfile. The instruction: "We need to apply the suggested edit to the original code. The original code is a Dockerfile snippet. The suggested edit modifies the part where project files are copied and after that, adding steps to copy example wallpaper data and creating data directory. The suggested edit replaces the block from "# ---- 拷贝项目文件 ----" to "# ---- 创建数据目录并写入示例数据 ----" with a new set of instructions."
+FROM python:3.11-slim
 
-Looking at original code:
+LABEL maintainer="Ericality"
+LABEL description="Bing 每日壁纸 · Cover Flow 浏览器"
 
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      libexiv2-dev \
+      libboost-python-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY bing_docker.py .
+COPY Dispaly.html .
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+
+RUN mkdir -p /data/web/images /data/backup
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/Dispaly.html')" || exit 1
+
+ENTRYPOINT ["/app/entrypoint.sh"]
