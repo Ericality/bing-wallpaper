@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+env/
+venv/
+
+# macOS
+.DS_Store
+
+# 本地图片数据（运行时动态生成）
+images/
+*.jpg
+*.jpeg
+
+# 本地元数据
+wallpapers.json
+
+# Docker 相关
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# README
+README*.md

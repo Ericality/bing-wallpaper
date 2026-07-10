@@ -1,0 +1,4 @@
+requests>=2.28.0
+pyexiv2>=2.7.0
+pytz>=2022.1
+beautifulsoup4>=4.11.0

@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  bing-wallpaper:
+    build: .
+    container_name: bing-wallpaper
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # 挂载网页数据目录（壁纸图片 + 元数据）
+      - ./data/web:/data/web
+      # 挂载备份目录（可选，用于长期存档）
+      - ./data/backup:/data/backup
+    environment:
+      # ---- 路径配置 ----
+      - BING_WEB_PATH=/data/web
+      - BING_IMAGES_PATH=/data/web/images
+      - BING_METADATA_FILE=/data/web/wallpapers.json
+      - BING_BACKUP_PATH=/data/backup
+
+      # ---- 是否启动时自动抓取一次 ----
+      - BING_AUTO_FETCH=${BING_AUTO_FETCH:-false}
+
+      # ---- 通知推送（可选）----
+      - BARK_DEVICE_KEY=${BARK_DEVICE_KEY:-}
+      - BARK_API_URL=${BARK_API_URL:-https://api.day.app/push}
+      - SYNOLOGY_CHAT_WEBHOOK=${SYNOLOGY_CHAT_WEBHOOK:-}
+
+      # ---- 时区 ----
+      - TZ=Asia/Shanghai

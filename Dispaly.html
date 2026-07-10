@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Bing 每日壁纸 · Cover Flow</title>
+    <style>
+        /* ===== 全局重置 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ----- 模糊背景层 ----- */
+        .blur-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('');
+            background-size: cover;
+            background-position: center;
+            filter: blur(30px) brightness(0.5);
+            transform: scale(1.1);
+            z-index: 0;
+            transition: background-image 0.3s ease;
+        }
+
+        .overlay-mask {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* ----- 主内容容器（flex列，7:3比例） ----- */
+        .main-content {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 30px 30px 20px 30px;
+            max-width: 1300px;
+            margin: 0 auto;
+            pointer-events: none;
+        }
+        .main-content>* {
+            pointer-events: auto;
+        }
+
+        /* ----- 左上角菜单按钮 ----- */
+        .menu-btn {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 48px;
+            height: 48px;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: background 0.2s;
+            z-index: 100;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .menu-btn:hover {
+            background: rgba(255, 255, 255, 0.35);
+        }
+        .menu-btn:active {
+            background: rgba(255, 255, 255, 0.45);
+            transform: scale(0.94);
+            transition: transform 0.1s;
+        }
+
+        /* ----- 左右切换箭头 ----- */
+        .nav-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            color: white;
+            cursor: pointer;
+            z-index: 50;
+            transition: background 0.2s;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .nav-arrow:hover {
+            background: rgba(0, 0, 0, 0.6);
+        }
+        .nav-arrow:active {
+            background: rgba(0, 0, 0, 0.75);
+            transform: translateY(-50%) scale(0.9);
+            transition: transform 0.1s;
+        }
+        .nav-arrow.left {
+            left: 30px;
+        }
+        .nav-arrow.right {
+            right: 30px;
+        }
+        @media (max-width: 700px) {
+            .nav-arrow {
+                width: 40px;
+                height: 40px;
+                font-size: 24px;
+            }
+            .nav-arrow.left {
+                left: 10px;
+            }
+            .nav-arrow.right {
+                right: 10px;
+            }
+        }
+
+        /* ----- Cover Flow 轮播容器（占据70%高度，支持拖拽滑动） ----- */
+        .carousel-container {
+            flex: 7;
+            min-height: 0;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            cursor: grab;
+            user-select: none;
+            touch-action: pan-y pinch-zoom;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        .carousel-container:active {
+            cursor: grabbing;
+        }
+        .carousel-container.grabbing {
+            cursor: grabbing;
+        }
+
+        /* 轮播项基础样式 */
+        .carousel-item {
+            height: 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border-radius: 32px;
+            background-color: transparent;
+            overflow: hidden;
+            pointer-events: auto;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 两侧项：使用 cover 填满容器，不留白；阴影调淡 */
+        .carousel-item.prev,
+        .carousel-item.next {
+            flex: 1 1 0;
+            background-size: cover;
+            transform: scale(0.92);
+            opacity: 0.7;
+            filter: brightness(0.9);
+            z-index: 1;
+            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 当前项：保持 contain，完整显示图片；阴影调淡 */
+        .carousel-item.current {
+            flex: 0 0 auto;
+            aspect-ratio: 16 / 9;
+            height: 100%;
+            background-size: contain;
+            transform: scale(1);
+            opacity: 1;
+            z-index: 5;
+            box-shadow: 0 20px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 悬停效果 */
+        .carousel-item.prev:hover,
+        .carousel-item.next:hover {
+            transform: scale(0.96);
+            opacity: 0.9;
+            filter: brightness(1);
+        }
+        .carousel-item.current:hover {
+            transform: scale(1.02);
+            box-shadow: 0 24px 36px rgba(0, 0, 0, 0.6);
+        }
+
+        /* 点击反馈 */
+        .carousel-item.current:active {
+            transform: scale(0.97);
+            transition: transform 0.1s;
+        }
+        .carousel-item.prev:active,
+        .carousel-item.next:active {
+            transform: scale(0.88);
+            transition: transform 0.1s;
+        }
+
+        /* 移动端调整 */
+        @media (max-width: 700px) {
+            .carousel-container {
+                gap: 5px;
+            }
+            .carousel-item.current {
+                border-radius: 20px;
+            }
+            .carousel-item.prev,
+            .carousel-item.next {
+                border-radius: 16px;
+            }
+        }
+
+        /* ----- 下方文字区域（占据30%高度，可滑动） ----- */
+        .text-section {
+            flex: 3;
+            min-height: 0;
+            width: 100%;
+            padding: 0 15px 15px 15px;
+            color: white;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+            margin-top: 8px;
+        }
+
+        .text-section::-webkit-scrollbar {
+            width: 6px;
+        }
+        .text-section::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .text-section::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .title-row {
+            font-size: 1.8rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+        }
+        .title-main {
+            margin-right: 16px;
+        }
+        .copyright {
+            font-size: 1.1rem;
+            font-weight: 400;
+            color: #ddd;
+        }
+        .description-row {
+            font-size: 1.2rem;
+            font-weight: 400;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            max-width: 900px;
+            color: #f0f0f0;
+        }
+
+        /* ----- 缩略图网格面板 ----- */
+        .thumbnail-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        .thumbnail-panel.visible {
+            pointer-events: auto;
+            opacity: 1;
+        }
+        .panel-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+        }
+        .thumbnail-grid {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 900px;
+            max-height: 70vh;
+            background: rgba(30, 30, 30, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 32px;
+            padding: 30px 20px;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 16px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+        }
+        .thumb-item {
+            border-radius: 16px;
+            overflow: hidden;
+            background: #333;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            aspect-ratio: 16/9;
+            border: 2px solid transparent;
+            position: relative;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .thumb-item:hover {
+            transform: scale(1.03);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.5);
+            z-index: 2;
+        }
+        .thumb-item:active {
+            transform: scale(0.95);
+            transition: transform 0.1s;
+        }
+        .thumb-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: filter 0.2s;
+        }
+        .thumb-item:hover img {
+            filter: brightness(0.7);
+        }
+
+        /* 缩略图标题覆盖层 - 桌面端 hover 时显示 */
+        .thumb-title-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.5) 60%, transparent 100%);
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 28px 8px 8px 8px;
+            text-align: center;
+            line-height: 1.3;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            letter-spacing: 0.01em;
+        }
+        .thumb-item:hover .thumb-title-overlay {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .thumb-date {
+            text-align: center;
+            font-size: 0.8rem;
+            color: white;
+            margin-top: 4px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 4px;
+            border-radius: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ----- 全屏浏览层 ----- */
+        #fullscreen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #fullscreen-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #fullscreen-overlay img {
+            max-width: 95vw;
+            max-height: 95vh;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* 移动端适应 */
+        @media (max-width: 600px) {
+            .main-content {
+                padding: 20px 16px 10px;
+            }
+            .title-row {
+                font-size: 1.4rem;
+            }
+            .copyright {
+                font-size: 0.9rem;
+            }
+            .description-row {
+                font-size: 1rem;
+            }
+            .thumbnail-grid {
+                grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+                padding: 20px 10px;
+                gap: 10px;
+            }
+            .thumb-title-overlay {
+                font-size: 0.65rem;
+                padding: 20px 6px 6px 6px;
+            }
+            .menu-btn {
+                top: 16px;
+                left: 16px;
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="blur-backdrop" id="blurBackdrop"></div>
+    <div class="overlay-mask"></div>
+
+    <div class="main-content">
+        <div class="menu-btn" id="menuBtn" aria-label="缩略图列表" title="查看所有壁纸">☰</div>
+        <div class="nav-arrow left" id="prevBtn" aria-label="上一张" title="上一张">‹</div>
+        <div class="nav-arrow right" id="nextBtn" aria-label="下一张" title="下一张">›</div>
+
+        <!-- Cover Flow 轮播，支持拖拽滑动 -->
+        <div class="carousel-container" id="carouselContainer">
+            <div class="carousel-item prev" id="prevItem" data-index=""></div>
+            <div class="carousel-item current" id="currentItem" data-index=""></div>
+            <div class="carousel-item next" id="nextItem" data-index=""></div>
+        </div>
+
+        <!-- 文字区域（可滑动） -->
+        <div class="text-section">
+            <div class="title-row">
+                <span class="title-main" id="titleMain"></span>
+                <span class="copyright" id="copyright"></span>
+            </div>
+            <div class="description-row" id="description"></div>
+        </div>
+    </div>
+
+    <div class="thumbnail-panel" id="thumbnailPanel">
+        <div class="panel-overlay" id="panelOverlay"></div>
+        <div class="thumbnail-grid" id="thumbnailGrid"></div>
+    </div>
+
+    <div id="fullscreen-overlay">
+        <img src="" alt="全屏壁纸">
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ==================== DOM 元素 ====================
+            const blurBackdrop = document.getElementById('blurBackdrop');
+            const prevItem = document.getElementById('prevItem');
+            const currentItem = document.getElementById('currentItem');
+            const nextItem = document.getElementById('nextItem');
+            const titleMain = document.getElementById('titleMain');
+            const copyright = document.getElementById('copyright');
+            const description = document.getElementById('description');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const menuBtn = document.getElementById('menuBtn');
+            const thumbnailPanel = document.getElementById('thumbnailPanel');
+            const panelOverlay = document.getElementById('panelOverlay');
+            const thumbnailGrid = document.getElementById('thumbnailGrid');
+            const fullscreenOverlay = document.getElementById('fullscreen-overlay');
+            const fullscreenImg = fullscreenOverlay.querySelector('img');
+            const carouselContainer = document.getElementById('carouselContainer');
+
+            // ==================== 状态变量 ====================
+            let wallpapers = [];
+            let currentIndex = 0;
+
+            // 拖拽滑动相关变量
+            let startX = 0;
+            let startY = 0;
+            let isDragging = false;
+            let hasActuallyDragged = false; // 是否真正发生了水平拖拽（超过阈值）
+            const dragThreshold = 50; // 水平滑动超过50px触发切换
+            const directionLockThreshold = 10; // 方向锁定阈值：超过此值判定为拖拽
+            let suppressClick = false; // 防止拖拽后误触发点击事件
+
+            // 记录当前触摸标识符，用于多点触摸时忽略额外手指
+            let activePointerId = null;
+
+            // ==================== 加载元数据 ====================
+            async function loadWallpapers() {
+                try {
+                    const response = await fetch('wallpapers.json', { cache: 'no-cache' });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const data = await response.json();
+                    if (Array.isArray(data)) {
+                        wallpapers = data.sort((a, b) => b.date.localeCompare(a.date));
+                    } else {
+                        wallpapers = [];
+                    }
+                } catch (e) {
+                    console.warn('加载 wallpapers.json 失败，使用模拟数据', e);
+                    wallpapers = [{
+                        date: '2026-03-18',
+                        image: '20260318.jpg',
+                        image_preview: '20260318_1080p.jpg',
+                        image_uhd: '20260318.jpg',
+                        title: '示例壁纸',
+                        copyright: '© Bing',
+                        description: '这是一个示例描述，实际数据将从 wallpapers.json 加载。'
+                    }];
+                }
+
+                if (wallpapers.length === 0) {
+                    wallpapers = [{
+                        date: new Date().toISOString().slice(0, 10),
+                        image: 'default.jpg',
+                        image_preview: 'default_1080p.jpg',
+                        image_uhd: 'default.jpg',
+                        title: '暂无壁纸',
+                        copyright: '',
+                        description: '暂时没有壁纸数据。'
+                    }];
+                }
+
+                renderThumbnails();
+                updateContent(currentIndex);
+            }
+
+            // ==================== 索引计算 ====================
+            function getPrevIndex(index) {
+                return (index - 1 + wallpapers.length) % wallpapers.length;
+            }
+
+            function getNextIndex(index) {
+                return (index + 1) % wallpapers.length;
+            }
+
+            // ==================== 更新轮播内容 ====================
+            function updateContent(index) {
+                if (wallpapers.length === 0) return;
+                currentIndex = (index + wallpapers.length) % wallpapers.length;
+
+                const prevIdx = getPrevIndex(currentIndex);
+                const nextIdx = getNextIndex(currentIndex);
+
+                const currentItemData = wallpapers[currentIndex];
+                const prevItemData = wallpapers[prevIdx];
+                const nextItemData = wallpapers[nextIdx];
+
+                const basePath = 'images/';
+                prevItem.style.backgroundImage = `url('${basePath}${prevItemData.image_preview || prevItemData.image}')`;
+                currentItem.style.backgroundImage = `url('${basePath}${currentItemData.image_preview || currentItemData.image}')`;
+                nextItem.style.backgroundImage = `url('${basePath}${nextItemData.image_preview || nextItemData.image}')`;
+
+                prevItem.dataset.index = prevIdx;
+                currentItem.dataset.index = currentIndex;
+                nextItem.dataset.index = nextIdx;
+
+                // 更新模糊背景
+                blurBackdrop.style.backgroundImage = `url('${basePath}${currentItemData.image_preview || currentItemData.image}')`;
+
+                // 更新文字信息
+                titleMain.textContent = currentItemData.title || 'Bing 壁纸';
+                copyright.textContent = currentItemData.copyright || '© Bing';
+                description.textContent = currentItemData.description || '';
+
+                // 预加载 UHD 图片
+                const preloadUhd = new Image();
+                preloadUhd.src = basePath + (currentItemData.image_uhd || currentItemData.image);
+            }
+
+            // ==================== 切换图片 ====================
+            function prevImage() {
+                if (wallpapers.length === 0) return;
+                updateContent(currentIndex - 1);
+                // 点击反馈动画
+                currentItem.style.transform = 'scale(0.98)';
+                setTimeout(() => { currentItem.style.transform = ''; }, 100);
+            }
+
+            function nextImage() {
+                if (wallpapers.length === 0) return;
+                updateContent(currentIndex + 1);
+                currentItem.style.transform = 'scale(0.98)';
+                setTimeout(() => { currentItem.style.transform = ''; }, 100);
+            }
+
+            // ==================== 轮播项点击处理 ====================
+            function onCarouselItemClick(event) {
+                // 如果刚完成拖拽滑动，抑制点击
+                if (suppressClick) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    return;
+                }
+                const target = event.currentTarget;
+                const clickedIndex = parseInt(target.dataset.index);
+                if (isNaN(clickedIndex)) return;
+
+                if (target === currentItem) {
+                    // 点击当前项 → 全屏显示
+                    showFullscreen();
+                } else {
+                    // 点击两侧项 → 切换到该项
+                    updateContent(clickedIndex);
+                    target.style.transform = 'scale(0.9)';
+                    setTimeout(() => { target.style.transform = ''; }, 100);
+                }
+            }
+
+            // ==================== 拖拽滑动逻辑 ====================
+            /**
+             * 获取事件中的指针坐标
+             * 兼容 TouchEvent 和 MouseEvent
+             */
+            function getEventClientCoords(e) {
+                if (e.touches && e.touches.length > 0) {
+                    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+                if (e.changedTouches && e.changedTouches.length > 0) {
+                    return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+                }
+                return { x: e.clientX, y: e.clientY };
+            }
+
+            /**
+             * 拖拽开始
+             * 注意：此处不调用 preventDefault()，以保证移动端点击事件能正常触发
+             */
+            function handleDragStart(e) {
+                // 多点触摸时忽略额外手指
+                if (e.pointerId !== undefined && activePointerId !== null && e.pointerId !== activePointerId) {
+                    return;
+                }
+                if (e.touches && e.touches.length > 1) {
+                    // 已经有一个手指在操作，忽略第二个
+                    return;
+                }
+
+                const coords = getEventClientCoords(e);
+                startX = coords.x;
+                startY = coords.y;
+                isDragging = true;
+                hasActuallyDragged = false;
+                suppressClick = false;
+                activePointerId = e.pointerId !== undefined ? e.pointerId : (e.touches ? 0 : null);
+
+                carouselContainer.classList.add('grabbing');
+            }
+
+            /**
+             * 拖拽移动
+             * 仅在检测到明显水平滑动时才 preventDefault，避免阻止垂直滚动
+             */
+            function handleDragMove(e) {
+                if (!isDragging) return;
+
+                // 检查指针ID是否匹配（防止多点触摸混乱）
+                if (e.pointerId !== undefined && activePointerId !== null && e.pointerId !== activePointerId) {
+                    return;
+                }
+
+                const coords = getEventClientCoords(e);
+                const deltaX = coords.x - startX;
+                const deltaY = coords.y - startY;
+                const absDeltaX = Math.abs(deltaX);
+                const absDeltaY = Math.abs(deltaY);
+
+                // 方向锁定：水平移动超过阈值 且 水平移动大于垂直移动时，才认定为水平拖拽
+                if (absDeltaX > directionLockThreshold && absDeltaX > absDeltaY) {
+                    // 阻止默认行为（页面水平滚动、选中文本等）
+                    if (e.cancelable) {
+                        e.preventDefault();
+                    }
+                    hasActuallyDragged = true;
+                }
+                // 如果垂直移动更大，则不阻止默认行为，让用户正常垂直滚动
+            }
+
+            /**
+             * 拖拽结束
+             */
+            function handleDragEnd(e) {
+                if (!isDragging) {
+                    resetDragState();
+                    return;
+                }
+
+                const coords = getEventClientCoords(e);
+                const deltaX = coords.x - startX;
+
+                if (hasActuallyDragged && Math.abs(deltaX) > dragThreshold) {
+                    // 确实发生了水平拖拽且超过切换阈值
+                    if (deltaX > 0) {
+                        // 向右滑动 → 上一张
+                        prevImage();
+                    } else {
+                        // 向左滑动 → 下一张
+                        nextImage();
+                    }
+                    // 抑制后续的 click 事件
+                    suppressClick = true;
+                    setTimeout(() => {
+                        suppressClick = false;
+                    }, 350);
+                }
+                // 如果只是点击（没有拖拽），不设置 suppressClick，让 click 事件正常触发
+
+                resetDragState();
+            }
+
+            /**
+             * 重置拖拽状态
+             */
+            function resetDragState() {
+                isDragging = false;
+                hasActuallyDragged = false;
+                startX = 0;
+                startY = 0;
+                activePointerId = null;
+                carouselContainer.classList.remove('grabbing');
+            }
+
+            // ---- 绑定触摸事件（移动端） ----
+            // touchstart: passive=true 提升性能，因为我们不需要在其中 preventDefault
+            carouselContainer.addEventListener('touchstart', handleDragStart, { passive: true });
+            // touchmove: passive=false 以便在水平拖拽时能够 preventDefault
+            carouselContainer.addEventListener('touchmove', handleDragMove, { passive: false });
+            // touchend 绑定在 document 上，防止手指移出容器后松手导致事件丢失
+            document.addEventListener('touchend', handleDragEnd);
+            // touchcancel 也重置状态
+            document.addEventListener('touchcancel', resetDragState);
+
+            // ---- 绑定鼠标事件（桌面端） ----
+            carouselContainer.addEventListener('mousedown', handleDragStart);
+            window.addEventListener('mousemove', handleDragMove);
+            window.addEventListener('mouseup', handleDragEnd);
+            // 鼠标移出窗口时重置
+            window.addEventListener('mouseleave', function(e) {
+                if (isDragging) {
+                    resetDragState();
+                    suppressClick = false;
+                }
+            });
+
+            // ==================== 全屏功能 ====================
+            function showFullscreen() {
+                if (wallpapers.length === 0) return;
+                const item = wallpapers[currentIndex];
+                const uhdPath = 'images/' + (item.image_uhd || item.image);
+                fullscreenImg.src = uhdPath;
+                fullscreenImg.alt = item.title || '壁纸';
+                fullscreenOverlay.classList.add('visible');
+                // 阻止背景滚动
+                document.body.style.overflow = 'hidden';
+            }
+
+            function hideFullscreen() {
+                fullscreenOverlay.classList.remove('visible');
+                document.body.style.overflow = '';
+                // 延迟清除图片，避免视觉闪烁
+                setTimeout(() => {
+                    if (!fullscreenOverlay.classList.contains('visible')) {
+                        fullscreenImg.src = '';
+                    }
+                }, 300);
+            }
+
+            // ==================== 缩略图面板 ====================
+            function renderThumbnails() {
+                thumbnailGrid.innerHTML = '';
+                wallpapers.forEach((item, idx) => {
+                    const thumbDiv = document.createElement('div');
+                    thumbDiv.className = 'thumb-item';
+                    thumbDiv.dataset.index = idx;
+                    thumbDiv.title = item.title || 'Bing 壁纸'; // 原生 tooltip 作为后备
+
+                    const img = document.createElement('img');
+                    img.src = 'images/' + (item.image_preview || item.image);
+                    img.alt = item.title || '壁纸';
+                    img.loading = 'lazy';
+                    thumbDiv.appendChild(img);
+
+                    // 标题覆盖层（桌面端 hover 显示）
+                    const titleOverlay = document.createElement('div');
+                    titleOverlay.className = 'thumb-title-overlay';
+                    titleOverlay.textContent = item.title || 'Bing 壁纸';
+                    thumbDiv.appendChild(titleOverlay);
+
+                    // 日期标签
+                    const dateSpan = document.createElement('div');
+                    dateSpan.className = 'thumb-date';
+                    dateSpan.textContent = item.date.slice(5); // 显示 MM-DD
+                    thumbDiv.appendChild(dateSpan);
+
+                    // 点击缩略图跳转
+                    thumbDiv.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const index = parseInt(thumbDiv.dataset.index);
+                        if (!isNaN(index)) {
+                            updateContent(index);
+                            hideThumbnailPanel();
+                        }
+                    });
+
+                    thumbnailGrid.appendChild(thumbDiv);
+                });
+            }
+
+            function showThumbnailPanel() {
+                thumbnailPanel.classList.add('visible');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function hideThumbnailPanel() {
+                thumbnailPanel.classList.remove('visible');
+                document.body.style.overflow = '';
+            }
+
+            // ==================== 事件绑定 ====================
+            // 轮播项点击
+            prevItem.addEventListener('click', onCarouselItemClick);
+            currentItem.addEventListener('click', onCarouselItemClick);
+            nextItem.addEventListener('click', onCarouselItemClick);
+
+            // 全屏
+            fullscreenOverlay.addEventListener('click', hideFullscreen);
+            // 防止点击全屏图片时误关闭（事件冒泡到 overlay）
+            fullscreenImg.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // 点击图片本身也关闭全屏（符合直觉）
+                hideFullscreen();
+            });
+
+            // 导航箭头
+            prevBtn.addEventListener('click', (e) => { e.stopPropagation();
+                prevImage(); });
+            nextBtn.addEventListener('click', (e) => { e.stopPropagation();
+                nextImage(); });
+
+            // 菜单按钮
+            menuBtn.addEventListener('click', (e) => { e.stopPropagation();
+                showThumbnailPanel(); });
+
+            // 缩略图面板
+            panelOverlay.addEventListener('click', hideThumbnailPanel);
+            thumbnailGrid.addEventListener('click', (e) => e.stopPropagation());
+
+            // ==================== 键盘快捷键 ====================
+            window.addEventListener('keydown', (e) => {
+                // Escape：关闭全屏或缩略图面板
+                if (e.key === 'Escape') {
+                    if (fullscreenOverlay.classList.contains('visible')) {
+                        hideFullscreen();
+                        return;
+                    }
+                    if (thumbnailPanel.classList.contains('visible')) {
+                        hideThumbnailPanel();
+                        return;
+                    }
+                }
+                // 左右箭头切换
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    prevImage();
+                }
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    nextImage();
+                }
+                // F 键全屏
+                if (e.key === 'f' || e.key === 'F') {
+                    if (!thumbnailPanel.classList.contains('visible')) {
+                        showFullscreen();
+                    }
+                }
+                // G 键打开缩略图网格
+                if (e.key === 'g' || e.key === 'G') {
+                    if (!fullscreenOverlay.classList.contains('visible')) {
+                        showThumbnailPanel();
+                    }
+                }
+            });
+
+            // ==================== 窗口大小变化时更新布局 ====================
+            let resizeDebounceTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeDebounceTimer);
+                resizeDebounceTimer = setTimeout(() => {
+                    // 刷新当前内容以确保图片正确适应
+                    if (wallpapers.length > 0) {
+                        updateContent(currentIndex);
+                    }
+                }, 250);
+            });
+
+            // ==================== 初始化 ====================
+            loadWallpapers();
+
+            console.log('🚀 Bing 每日壁纸 · Cover Flow 已就绪');
+            console.log('   ⌨ 键盘快捷键: ← → 切换 | F 全屏 | G 缩略图 | Esc 关闭');
+            console.log('   📱 移动端: 左右滑动切换 | 点击中间图片全屏');
+            console.log('   🖱 桌面端: 拖拽滑动 | 悬停缩略图查看标题');
+        })();
+    </script>
+</body>
+</html>

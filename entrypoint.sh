@@ -1,0 +1,30 @@
+#!/bin/bash
+set -e
+
+echo "=========================================="
+echo "  🌄 Bing 每日壁纸 · Cover Flow 浏览器"
+echo "=========================================="
+
+# 确保数据目录存在
+mkdir -p "$BING_WEB_PATH" "$BING_IMAGES_PATH" "$BING_BACKUP_PATH"
+
+echo ""
+echo "📁 网页目录:   $BING_WEB_PATH"
+echo "🖼️  图片目录:   $BING_IMAGES_PATH"
+echo "💾 备份目录:   $BING_BACKUP_PATH"
+echo "📋 元数据文件: $BING_METADATA_FILE"
+echo ""
+
+# 如果设置了自动抓取，先执行一次
+if [ "${BING_AUTO_FETCH}" = "true" ]; then
+    echo "📸 执行首次壁纸抓取..."
+    python /app/bing_docker.py || echo "⚠️  首次抓取失败，服务继续运行"
+    echo ""
+fi
+
+echo "🚀 启动 HTTP 静态文件服务器 (端口 8080)..."
+cd "$BING_WEB_PATH"
+
+# 使用 Python http.server 提供静态文件服务
+exec python -m http.server 8080 --bind 0.0.0.0
+"
