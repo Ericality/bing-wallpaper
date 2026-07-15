@@ -206,6 +206,9 @@ def cleanup_old_images():
 
 def _send_to_single_synology_webhook(webhook_url, title, description, image_url=None):
     """向单个 Synology Chat Webhook 发送消息"""
+    if not webhook_url:
+        print("✗ Synology Chat Webhook 地址为空，跳过")
+        return False
     try:
         message = f"**{title}**\n\n{description}"
         if image_url:
@@ -257,6 +260,9 @@ def send_synology_notification(title, description, image_url=None):
 
 def _send_to_single_bark_device(device_key, title, body, group="BingWallpaper", level="active", icon=None):
     """向单个 Bark 设备发送通知"""
+    if not device_key:
+        print("✗ Bark 设备密钥为空，跳过")
+        return False
     try:
         payload = {
             "device_key": device_key,
