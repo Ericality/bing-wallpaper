@@ -9,8 +9,28 @@ from bs4 import BeautifulSoup
 import urllib.parse
 
 # ==================== 常量配置（通过环境变量注入）====================
-SYNOLOGY_CHAT_WEBHOOK = os.environ.get('SYNOLOGY_CHAT_WEBHOOK', '')
-BARK_DEVICE_KEY = os.environ.get('BARK_DEVICE_KEY', '')
+
+def parse_list_env(value):
+    """将逗号分隔的环境变量字符串解析为列表（去空白、过滤空值）"""
+    if not value:
+        return []
+    return [item.strip() for item in value.split(',') if item.strip()]
+
+
+# Synology Chat Webhook 地址，支持逗号分隔多个
+# 优先使用复数变量名 SYNOLOGY_CHAT_WEBHOOKS，向下兼容单数形式
+SYNOLOGY_CHAT_WEBHOOKS = parse_list_env(
+    os.environ.get('SYNOLOGY_CHAT_WEBHOOKS',
+                    os.environ.get('SYNOLOGY_CHAT_WEBHOOK', ''))
+)
+
+# Bark 设备密钥，支持逗号分隔多个
+# 优先使用复数变量名 BARK_DEVICE_KEYS，向下兼容单数形式
+BARK_DEVICE_KEYS = parse_list_env(
+    os.environ.get('BARK_DEVICE_KEYS',
+                    os.environ.get('BARK_DEVICE_KEY', ''))
+)
+
 BARK_API_URL = os.environ.get('BARK_API_URL', 'https://api.day.app/push')
 
 # 路径配置（全部通过环境变量覆盖，适配 Docker / 任意服务器部署）
@@ -184,8 +204,8 @@ def cleanup_old_images():
 
 # ==================== 通知发送函数 ====================
 
-def send_synology_notification(title, description, image_url=None):
-    """发送消息到 Synology Chat"""
+def _send_to_single_synology_webhook(webhook_url, title, description, image_url=None):
+    """向单个 Synology Chat Webhook 发送消息"""
     try:
         message = f"**{title}**\n\n{description}"
         if image_url:
@@ -193,9 +213,9 @@ def send_synology_notification(title, description, image_url=None):
         payload_json = {"text": message}
         payload_str = json.dumps(payload_json, ensure_ascii=False)
         data = {"payload": payload_str}
-        print(f"正在发送 Synology Chat: {title}")
+        print(f"正在发送 Synology Chat ({webhook_url[:50]}...): {title}")
         response = requests.post(
-            SYNOLOGY_CHAT_WEBHOOK,
+            webhook_url,
             data=data,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             timeout=10,
@@ -222,11 +242,24 @@ def send_synology_notification(title, description, image_url=None):
         print(f"✗ Synology Chat 异常: {e}")
         return False
 
-def send_bark_notification(title, body, group="BingWallpaper", level="active", icon=None):
-    """发送通知到 Bark (iOS)"""
+
+def send_synology_notification(title, description, image_url=None):
+    """发送消息到所有配置的 Synology Chat Webhook"""
+    if not SYNOLOGY_CHAT_WEBHOOKS:
+        print("未配置 Synology Chat Webhook，跳过通知")
+        return
+
+    success_count = 0
+    for webhook_url in SYNOLOGY_CHAT_WEBHOOKS:
+        if _send_to_single_synology_webhook(webhook_url, title, description, image_url):
+            success_count += 1
+    print(f"Synology Chat 通知完成: {success_count}/{len(SYNOLOGY_CHAT_WEBHOOKS)} 成功")
+
+def _send_to_single_bark_device(device_key, title, body, group="BingWallpaper", level="active", icon=None):
+    """向单个 Bark 设备发送通知"""
     try:
         payload = {
-            "device_key": BARK_DEVICE_KEY,
+            "device_key": device_key,
             "title": title,
             "body": body,
             "group": group,
@@ -242,11 +275,27 @@ def send_bark_notification(title, body, group="BingWallpaper", level="active", i
         response.raise_for_status()
         resp_json = response.json()
         if resp_json.get("code") == 200:
-            print(f"✓ Bark 通知发送成功: {title}")
+            print(f"✓ Bark 通知发送成功 ({device_key[:8]}...): {title}")
+            return True
         else:
-            print(f"✗ Bark 通知失败: {resp_json.get('message')}")
+            print(f"✗ Bark 通知失败 ({device_key[:8]}...): {resp_json.get('message')}")
+            return False
     except Exception as e:
-        print(f"✗ Bark 通知异常: {e}")
+        print(f"✗ Bark 通知异常 ({device_key[:8]}...): {e}")
+        return False
+
+
+def send_bark_notification(title, body, group="BingWallpaper", level="active", icon=None):
+    """发送通知到所有配置的 Bark 设备"""
+    if not BARK_DEVICE_KEYS:
+        print("未配置 Bark 设备密钥，跳过通知")
+        return
+
+    success_count = 0
+    for device_key in BARK_DEVICE_KEYS:
+        if _send_to_single_bark_device(device_key, title, body, group, level, icon):
+            success_count += 1
+    print(f"Bark 通知完成: {success_count}/{len(BARK_DEVICE_KEYS)} 成功")
 
 # ==================== 核心业务函数 ====================
 

@@ -27,8 +27,10 @@ if [ -n "${BING_CRON}" ]; then
     # 创建 cron wrapper 脚本，注入环境变量
     cat > /app/cron_run.sh << EOF
 #!/bin/bash
-export SYNOLOGY_CHAT_WEBHOOK="${SYNOLOGY_CHAT_WEBHOOK}"
-export BARK_DEVICE_KEY="${BARK_DEVICE_KEY}"
+export SYNOLOGY_CHAT_WEBHOOKS="${SYNOLOGY_CHAT_WEBHOOKS}"
+export SYNOLOGY_CHAT_WEBHOOK="${SYNOLOGY_CHAT_WEBHOOKS}"
+export BARK_DEVICE_KEYS="${BARK_DEVICE_KEYS}"
+export BARK_DEVICE_KEY="${BARK_DEVICE_KEYS}"
 export BARK_API_URL="${BARK_API_URL:-https://api.day.app/push}"
 export BING_WEB_PATH="${BING_WEB_PATH}"
 export BING_IMAGES_PATH="${BING_IMAGES_PATH}"

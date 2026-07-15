@@ -26,9 +26,9 @@ services:
       - BING_CRON=${BING_CRON:-}
 
       # ---- 通知推送（可选）----
-      - BARK_DEVICE_KEY=${BARK_DEVICE_KEY:-}
+      - BARK_DEVICE_KEYS=${BARK_DEVICE_KEYS:-}
       - BARK_API_URL=${BARK_API_URL:-https://api.day.app/push}
-      - SYNOLOGY_CHAT_WEBHOOK=${SYNOLOGY_CHAT_WEBHOOK:-}
+      - SYNOLOGY_CHAT_WEBHOOKS=${SYNOLOGY_CHAT_WEBHOOKS:-}
 
       # ---- 时区 ----
       - TZ=Asia/Shanghai
